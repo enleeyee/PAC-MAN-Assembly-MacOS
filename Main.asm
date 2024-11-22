@@ -103,6 +103,7 @@ CODESEG
 		INCLUDE "MainMenu.asm"
         INCLUDE "Math.asm" 
         INCLUDE "Pacman.asm"
+        INCLUDE "Text.asm"
         INCLUDE "Time.asm"
 		INCLUDE "Timers.asm"
 	;}
