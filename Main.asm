@@ -47,6 +47,11 @@ DATASEG
 		LOSE_ANI	DW 6 DUP (0)
 	;}
 
+    ;Layout & Dots {
+		CNT_DOTS 		DW 174 ;TOTAL DOTS = 180dots + 4pps
+		CNT_DOTS_TEMP	DW 0
+	;}
+
 	;MAIN MENU {
 		MENU_PTR	DB 0
 		STR_PLAY	DB "PLAY$"
@@ -80,6 +85,7 @@ CODESEG
         INCLUDE "Ghost.asm"
 		INCLUDE "GhostAI.asm"
         INCLUDE "Graphics.asm"
+        INCLUDE "Layout.asm"
 		INCLUDE "MainMenu.asm"
         INCLUDE "Pacman.asm"
         INCLUDE "Time.asm"
@@ -168,7 +174,7 @@ CODESEG
 				MOV [WORD PTR BX + 10], OFFSET PAC_LOSE_6
 			;}
 		;}
-        		
+
 		CALL MAINMENU
 		
 		;WAITS UNTIL YOU CHOOSE A DIRECTION {
@@ -181,6 +187,8 @@ CODESEG
 		Update:
 		;{
 			CALL GAME_INPUT	
+
+            CALL G_CHECK_DOTS
 
             CALL CLOCK
 		;}
