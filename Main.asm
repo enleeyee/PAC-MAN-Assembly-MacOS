@@ -36,6 +36,14 @@ DATASEG
 		MENU_TXT_OFF	DW 0,0,0
 		MENU_TXT_COL	DW 0,0,0
 	;}
+
+    ;PacMan Vars {
+		PACX			DW 99
+		PACY			DW 144 
+		DIR				DW DIR_N
+		NEXTDIR			DW DIR_N
+		LIVES			DW 4
+	;}
 	
 ;}
 
@@ -49,6 +57,7 @@ CODESEG
 	;{	
         INCLUDE "Graphics.asm"
 		INCLUDE "MainMenu.asm"
+        INCLUDE "Pacman.asm"
         INCLUDE "Time.asm"
 		INCLUDE "Timers.asm"
 	;}
