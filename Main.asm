@@ -71,6 +71,19 @@ DATASEG
 		NEXTDIR			DW DIR_N
 		LIVES			DW 4
 	;}
+
+    ;UI {
+		printNumArr 	DB 0,0,0,0,'$' 
+		Print_Dec		DB 0,0,0,0,0,'$'
+		ARR_DEC			DB 0,0,0,0,0
+		SCORE			DW 0
+		HP_FLAG			DB FALSE
+		STR_GAMEOVER	DB 'GAME OVER!$'
+		STR_SCORE		DB 'SCORE:$'
+		STR_PAUSED		DB 'PAUSED$'
+		STR_PAUSED_1	DB 27h,'E', 27h, ' = EXIT$'
+		STR_PAUSED_2	DB 27h, 'R', 27h, ' = RESUME$'
+	;}
 	
 ;}
 
@@ -82,6 +95,7 @@ CODESEG
 ;{
 	;PROCEDURES
 	;{	
+        INCLUDE "Game.asm"
         INCLUDE "Ghost.asm"
 		INCLUDE "GhostAI.asm"
         INCLUDE "Graphics.asm"
