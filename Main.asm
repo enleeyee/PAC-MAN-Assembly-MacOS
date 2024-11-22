@@ -25,6 +25,17 @@ DATASEG
 		CNT_BLINK	DW 0
 	;}
 
+    ;Ghosts {
+		Ghosts 		DW 56 dup (0)
+		ARR_END 	DW 0
+		ARR_JMP		DW 28
+		IS_FRIGH	DB FALSE
+		EATGHOST	DW 200
+		PREV_MODE	DW MODE_SCAT
+		G_BLINK		DW -1
+		G_FRI_COL	DW 86h, 44h, WHITE_1, RED
+	;}
+
 	;MAIN MENU {
 		MENU_PTR	DB 0
 		STR_PLAY	DB "PLAY$"
@@ -55,6 +66,8 @@ CODESEG
 ;{
 	;PROCEDURES
 	;{	
+        INCLUDE "Ghost.asm"
+		INCLUDE "GhostAI.asm"
         INCLUDE "Graphics.asm"
 		INCLUDE "MainMenu.asm"
         INCLUDE "Pacman.asm"
