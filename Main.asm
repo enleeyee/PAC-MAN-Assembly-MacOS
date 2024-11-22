@@ -101,6 +101,7 @@ CODESEG
         INCLUDE "Graphics.asm"
         INCLUDE "Layout.asm"
 		INCLUDE "MainMenu.asm"
+        INCLUDE "Math.asm" 
         INCLUDE "Pacman.asm"
         INCLUDE "Time.asm"
 		INCLUDE "Timers.asm"
