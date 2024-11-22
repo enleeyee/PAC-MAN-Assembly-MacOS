@@ -18,6 +18,10 @@ DATASEG
 	
 ;}
 
+	;{
+		INCLUDE "Colors.asm" 
+	;}
+
 CODESEG
 ;{
 	;PROCEDURES
