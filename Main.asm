@@ -25,6 +25,15 @@ DATASEG
 		CNT_BLINK	DW 0
 	;}
 
+    ;Genearl (Levels and difficulty) {
+		SPEED   		DW 4
+		DUR_1ST_SCAT	DW 108
+		DUR_CHASE		DW 540
+		DUR_SCAT		DW 72
+		DUR_FRI			DW 54
+		LEVEL			DW 0
+	;}
+
     ;Ghosts {
 		Ghosts 		DW 56 dup (0)
 		ARR_END 	DW 0
@@ -95,6 +104,7 @@ CODESEG
 ;{
 	;PROCEDURES
 	;{	
+        INCLUDE "Difficulty.asm"
         INCLUDE "Game.asm"
         INCLUDE "Ghost.asm"
 		INCLUDE "GhostAI.asm"
@@ -112,6 +122,9 @@ CODESEG
 		Start:
 
         ;INIT{ 		
+            ;Data:
+			MOV AX, @data
+			MOV DS, AX
 			call graphics_Mode
 		;}
 
@@ -203,9 +216,7 @@ CODESEG
 		Update:
 		;{
 			CALL GAME_INPUT	
-
             CALL G_CHECK_DOTS
-
             CALL CLOCK
 		;}
 		JMP  Update			
