@@ -1,132 +1,68 @@
-PROC FILE_OPEN
-;{	
-	;START_PROC {
-		PUSH BP
-		MOV  BP, SP
-		
-		_NAME  EQU [WORD PTR BP + 6] 
-		HANDLE EQU [WORD PTR BP + 4]
-		
-		PUSH AX BX DX
-	;}
-	
-	;CODE{
-		MOV DX, _NAME
-		
-		MOV AH, 3Dh
-		MOV AL, READ&WRITE
-		
-		INT 21h
-		JC  @@END_PROC
-		
-		MOV BX, HANDLE
-		MOV [BX], AX 
-	;}
-	
-	@@END_PROC: ;{
-		POP DX BX AX
-		POP BP
-		RET 4
-	;}
-;}
-ENDP FILE_OPEN
+FILE_OPEN:
+    push bp
+    mov bp, sp
+    
+    mov dx, [bp + 6]        
+    mov ah, 3Dh             
+    mov al, 0               
+    int 21h         
+    
+    jc  @@END_PROC         
+    
+    mov bx, [bp + 4]   
+    mov [bx], ax            
+    
+@@END_PROC:
+    pop bp
+    ret 4                  
 
-PROC FILE_READ_OR_WRITE
-;{
-	;INPUT: READ OR WRITE, FILE HANDLE, BUFFER OFFSET, NUBMER OF BYTES TO READ
-	
-	;START PROC {
-		PUSH BP
-		MOV  BP, SP
-		
-		ACTION	  EQU [WORD PTR BP + 10]
-		BUFFER    EQU [WORD PTR BP + 8]
-		NUM_BYTES EQU [WORD PTR BP + 6]
-		HANDLE    EQU [WORD PTR BP + 4]
-		
-		
-		PUSH AX BX CX DX
-	;}
-	
-	;SET UP PARAMS {
-		MOV BX, HANDLE
-		MOV CX, NUM_BYTES
-		MOV DX, BUFFER
-		
-		CMP ACTION, WRITE
-		JZ  @@WRITE
-	;}
-	
-	@@READ: ;{
-		MOV AX, 3F00h
-		INT 21h
-		JMP @@END_PROC
-	;}
-	
-	@@WRITE: ;{
-		MOV AX, 4000h
-		INT 21h 
-	;}
-	
-	@@END_PROC: ;{
-		POP DX CX BX AX
-		POP BP
-		RET 8
-	;}
-;}
-ENDP FILE_READ_OR_WRITE
+FILE_READ_OR_WRITE:
+    push bp
+    mov bp, sp
+    
+    mov bx, [bp + 4]      
+    mov cx, [bp + 6]     
+    mov dx, [bp + 8]   
+    
+    cmp word [bp + 10], WRITE  
+    jz  @@WRITE
 
-PROC FILE_CLOSE
-;{
-	;START PROC {
-		PUSH BP
-		MOV  BP, SP
-		HANDLE EQU [BP + 4]
-		
-		PUSH AX BX
-	;}
-	
-	;CODE {
-		MOV AH, 3Eh
-		MOV BX, HANDLE
-		INT 21h
-	;}
-	
-	@@END_PROC: ;{
-		POP BX AX
-		POP BP
-		RET 2
-	;}
-;}
-ENDP FILE_CLOSE
+	; READ
+    mov ah, 3Fh            
+    mov al, 0             
+    int 21h
+    jmp @@END_PROC
 
-PROC FILE_UPDATE_POINTER
-;{
-	;START PROC {
-		PUSH BP
-		MOV  BP, SP
-		
-		RELATIVE_TO EQU [BP + 10]
-		NUM_BYTES_1 EQU [BP + 8]
-		NUM_BYTES 	EQU [BP + 6]
-		HANDLE 		EQU [BP + 4]
-		
-		PUSH AX BX CX DX
-	;}
-	
-	;CODE {
-		MOV AX, RELATIVE_TO
-		MOV AH, 42h
-		MOV BX, HANDLE
-		MOV CX, NUM_BYTES_1
-		MOV DX, NUM_BYTES
-		INT 21h		
-	;}
-	
-	@@END_PROC: ;{
-		POP DX CX BX AX
-		POP BP
-		RET 8
-	;}
-;}
-ENDP FILE_UPDATE_POINTER
+@@WRITE:
+    mov ah, 40h             
+    int 21h
+
+@@END_PROC:
+    pop bp
+    ret 8                   
+
+FILE_CLOSE:
+    push bp
+    mov bp, sp
+    
+    mov ah, 3Eh             
+    mov bx, [bp + 4]     
+    int 21h
+
+    pop bp
+    ret 2                  
+
+FILE_UPDATE_POINTER:
+    push bp
+    mov bp, sp
+    
+    mov ax, [bp + 10]      
+    mov ah, 42h             
+    mov bx, [bp + 4]       
+    mov cx, [bp + 8]     
+    mov dx, [bp + 6]   
+    int 21h
+
+@@END_PROC:
+    pop bp
+    ret 8                
