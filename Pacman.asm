@@ -1,342 +1,201 @@
-PROC PAC_MOVE
-;{
-	;START_PROC: {
-		PUSH CX
-		PUSH DX
-	;}
-	
-	;SET CX & DX {
-		MOV CX, [PACX]
-		MOV DX, [PACY]
-	;}
-	
-	;UPDATE X & Y ACCORDING TO DIRECTION ;{
-		ADD CL, [BYTE PTR DIR + 1]
-		ADD DL, [BYTE PTR DIR]
-	;}
-	
-	;HANDLE OVERFLOW: {
-		CMP CL, 0F7h
-		JZ  @@OVERFLOW_L
-		
-		CMP CX, 207
-		JZ  @@OVERFLOW_R
-		JMP @@IS_CLEAR_MOVE
-		;--------------------
-		@@OVERFLOW_L:
-		MOV CX, 198
-		JMP @@PAC_PRINT
-		
-		@@OVERFLOW_R:
-		MOV CX, 0
-		JMP @@PAC_PRINT
-	;}
-	
-	@@IS_CLEAR_MOVE: ;{
-		PUSH CX
-		PUSH DX
-		CALL CLEAR_MOVE	;CHECK IF THESE X & Y ARE CLEAR
-		
-		JNC @@CHECK_NEXT_DIR;IF NOT CLEAR(NC), THEN DON'T PRINT.
-	;}
-	
-	@@PAC_PRINT: ;{
-		PUSH CX
-		PUSH DX
-		CALL PAC_EATDOTS
-		
-		CALL PAC_CLEAR
-		
-		MOV [PACX], CX
-		MOV [PACY], DX
-		CALL PAC_ANIMATION
-	;}
-	
-	@@CHECK_NEXT_DIR: ;{
-		CMP [NEXTDIR], DIR_N
-		JZ  @@END_PROC
-		
-		;SET CX & DX TO PACX & PACY {
-			MOV CX, [PACX]
-			MOV DX, [PACY]
-		;}
-		
-		;UPDATE X & Y ACCORDING TO NEXT_DIR {
-			ADD CL, [BYTE PTR NEXTDIR + 1]
-			ADD DL, [BYTE PTR NEXTDIR]
-		;}
-		
-		;IS NEXT_DIR CLEAR? {
-			PUSH CX
-			PUSH DX
-			CALL CLEAR_MOVE
-			JNC @@END_PROC ;IF NO, EXIT PROCEDURE
-			
-			;IF YES, DIR = NEXT_DIR
-			PUSH [NEXTDIR]
-			POP  [DIR]
-		;}
-	;}
-	
-	@@END_PROC: ;{
-		POP DX
-		POP CX
-		CALL GAME_INPUT
-		RET
-	;}
-;}
-ENDP PAC_MOVE
+PAC_MOVE:
+    push cx
+    push dx
 
-PROC PAC_PRINT
-;{	
-	PUSH OFFSET PACMAN_0
-	PUSH YELLOW
-	PUSH [PACX]
-	PUSH [PACY]
-	CALL GRAPHICS_PRINTIMAGE
-	RET
-;}
-ENDP PAC_PRINT	
+    mov cx, [PACX]
+    mov dx, [PACY]
 
-PROC PAC_CLEAR
-;{
-	;PUSH PARAMS & CALL PRINTRECT {
-		PUSH [PACX]		;x
-		PUSH [PACY]		;y
-		
-		PUSH 9			;width
-		PUSH 9			;height
-		
-		PUSH black		;color
-		
-		CALL GRAPHICS_PRINTRECT
-	;}
-	
-	RET
-;}
-ENDP PAC_CLEAR
+    add cl, byte [DIR + 1]
+    add dl, byte [DIR]
 
-PROC PAC_EATDOTS
-;{
-	;INTPUT: X, Y
-	;OUTPUT: CF (1 = CLEAR, 0 = NOT CLEAR), BH = 1; BL = 1;
-	
-	;PARAMS {
-		PX_X EQU [WORD PTR BP + 6]
-		PX_Y EQU [WORD PTR BP + 4]
-	;}
-	
-	;PUSH & BASEPOINTER {
-		PUSH BP
-		MOV  BP, SP
-		
-		PUSH AX
-		PUSH BX
-	;}
-	
-	;GET COLOR {
-		ADD PX_X, 4
-		ADD PX_Y, 4
-	
-		PUSH PX_X
-		PUSH PX_Y
-		CALL GRAPHICS_GETCOLOR
-		
-		;OBJ = WALL? {
-			CMP AL, BLUE
-			JZ  @@END_PROC
-		;}
-		
-		;OBJ = VOID? {
-			CMP AL, BLACK
-			JZ  @@END_PROC
-		;}
-		
-		;OBJ = DOT? {
-			CMP AL, WHITE
-			JZ  @@DOT
-		;}
-	
-		;OBJ = PP? {
-			CMP AL, PP_PINK
-			JZ  @@PP
-		;}
-		
-		;ELSE, OBJ = GHOST {
-			;FIND THIS GHOST {
-				SUB PX_X, 4
-				SUB PX_Y, 4
-				
-				PUSH PX_X
-				PUSH PX_Y
-				CALL G_TRACE
-				POP  BX			;BX = THE GHOST'S BASE ADDRESS
-			;}
-			
-			CMP [WORD PTR G_OBJ], OBJ_DOT
-			JZ  @@DOT
-			
-			CMP [WORD PTR G_OBJ], OBJ_PP
-			JZ  @@PP
-			
-			JMP @@END_PROC
-		;}
-		
-		@@DOT: ;{
-			CALL EAT_DOT
-			JMP @@END_PROC
-		;}
-		
-		@@PP: ;{
-			CALL EAT_PP
-		;}
-	;}
-	
-	@@END_PROC:
-	;POP {
-		POP BX
-		POP AX
-		POP BP
-	;}
-	
-	RET 4
-;}
-ENDP PAC_EATDOTS
+    cmp cl, 0F7h
+    jz OVERFLOW_L
+    cmp cx, 207
+    jz OVERFLOW_R
+    jmp IS_CLEAR_MOVE
 
-PROC PAC_ANIMATION
-;{
-	PUSH AX
-	PUSH BX
-	
-	CALL PAC_CLEAR
-	
-	;CURRENT FRAME = [DIRECTION BASE] + [FRAME_POINTER]
-	
-	;RESTART ANIMATION IF NECESSARY {
-		CMP [PAC_FP], 16
-		JNZ @@CHECK_DIR
-		
-		MOV [PAC_FP], 0
-	;}
-	
-	@@CHECK_DIR: ;{
-		;DIRECTION = UP?
-		CMP [DIR], DIR_U
-		JZ  @@UP
-		
-		;DIRECTION = DOWN?
-		CMP [DIR], DIR_D
-		JZ  @@DOWN
-		
-		;DIRECTION = LEFT?
-		CMP [DIR], DIR_L
-		JZ  @@LEFT
-		
-		;DIRECTION = RIGHT?
-		CMP [DIR], DIR_R
-		JZ  @@RIGHT
-		
-		;ELSE, EXIT PROC:
-		JMP @@END_PROC
-	;}
-	
-	;UPDATE OFFSET {
-		@@UP: ;{
-			MOV BX, OFFSET PAC_ANI_U
-			JMP @@PRINT_PAC
-		;}
-		
-		@@DOWN: ;{
-			MOV BX, OFFSET PAC_ANI_D
-			JMP @@PRINT_PAC
-		;}
-		
-		@@LEFT: ;{
-			MOV BX, OFFSET PAC_ANI_L
-			JMP @@PRINT_PAC
-		;}
-		
-		@@RIGHT: ;{
-			MOV BX, OFFSET PAC_ANI_R
-		;}
-	;}
-	
-	@@PRINT_PAC: ;{
-		ADD BX, [PAC_FP]
-		
-		PUSH [BX]
-		PUSH YELLOW
-		PUSH [PACX]
-		PUSH [PACY]
-		
-		CALL GRAPHICS_PRINTIMAGE
-	;}
-	
-	@@END_PROC: ;{
-		POP BX
-		POP AX
-		ADD [PAC_FP], 2	;FRAME POINTER POINTS TO THE NEXT FRAME
-		RET
-	;}
-;}
-ENDP PAC_ANIMATION
+OVERFLOW_L:
+    mov cx, 198
+    jmp PAC_PRINT
 
-PROC EAT_PP
-;{
-	;SET GHOSTS TO FRIGHTENED MODE {
-		MOV [IS_FRIGH], TRUE
-		MOV [WORD PTR CNT_FRI],  0
-		MOV [WORD PTR G_BLINK],  -1
-	;}
+OVERFLOW_R:
+    mov cx, 0
+    jmp PAC_PRINT
+
+IS_CLEAR_MOVE:
+    push cx
+    push dx
+    call CLEAR_MOVE
+    jnc CHECK_NEXT_DIR
+
+PAC_PRINT:
+    push cx
+    push dx
+    call PAC_EATDOTS
+    call PAC_CLEAR
+    mov [PACX], cx
+    mov [PACY], dx
+    call PAC_ANIMATION
+
+CHECK_NEXT_DIR:
+    cmp [NEXTDIR], DIR_N
+    jz END_PROC
+
+    mov cx, [PACX]
+    mov dx, [PACY]
+
+    add cl, byte [NEXTDIR + 1]
+    add dl, byte [NEXTDIR]
+    push cx
+    push dx
+    call CLEAR_MOVE
+    jnc END_PROC
+    movzx ax, word [NEXTDIR]
+    mov [DIR], ax
+
+END_PROC:
+    pop dx
+    pop cx
+    call GAME_INPUT
+    ret
+
+PAC_PRINT:
+    push PACMAN_0
+    push YELLOW
+    push word [PACX]
+    push word [PACY]
+    call GRAPHICS_PRINTIMAGE
+    ret
+
+PAC_CLEAR:
+    push word [PACX]
+    push word [PACY]
+    push 9      
+    push 9     
+    push BLACK     
+    call GRAPHICS_PRINTRECT
+    ret
+
+PAC_EATDOTS:
+    push bp
+    mov bp, sp
+    push ax
+    push bx
+
+    add word [bp + 6], 4
+    add word [bp + 4], 4
+    push word [bp + 6]
+    push word [bp + 4]
+    call GRAPHICS_GETCOLOR
+
+    cmp al, BLUE
+    jz END_PROC
+    cmp al, BLACK
+    jz END_PROC
+    cmp al, WHITE
+    jz DOT
+    cmp al, PP_PINK
+    jz PP
+
+    sub word [bp + 6], 4
+    sub word [bp + 4], 4
+    push word [bp + 6]
+    push word [bp + 4]
+    call G_TRACE
+    pop bx
+    cmp word [G_OBJ], OBJ_DOT
+    jz DOT
+    cmp word [G_OBJ], OBJ_PP
+    jz PP
+
+DOT:
+    call EAT_DOT
+    jmp END_PROC
+
+PP:
+    call EAT_PP
+
+END_PROC:
+    pop bx
+    pop ax
+    pop bp
+    ret 4
+
+PAC_ANIMATION:
+    push ax
+    push bx
+    call PAC_CLEAR
+
+    cmp [PAC_FP], 16
+    jnz CHECK_DIR
+    mov [PAC_FP], 0
+
+CHECK_DIR:
+    cmp [DIR], DIR_U
+    jz UP
+    cmp [DIR], DIR_D
+    jz DOWN
+    cmp [DIR], DIR_L
+    jz LEFT
+    cmp [DIR], DIR_R
+    jz RIGHT
+    jmp END_PROC
+
+UP:
+    mov bx, PAC_ANI_U
+    jmp PRINT_PAC
+
+DOWN:
+    mov bx, PAC_ANI_D
+    jmp PRINT_PAC
+
+LEFT:
+    mov bx, PAC_ANI_L
+    jmp PRINT_PAC
+
+RIGHT:
+    mov bx, PAC_ANI_R
+
+PRINT_PAC:
+    add bx, [PAC_FP]
+    push [bx]
+    push YELLOW
+    push word [PACX]
+    push word [PACY]
+    call GRAPHICS_PRINTIMAGE
+
+END_PROC:
+    pop bx
+    pop ax
+    add word [PAC_FP], 2
+    ret
+
+EAT_PP:
+    mov [IS_FRIGH], 1
+    mov word [CNT_FRI], 0
+    mov word [G_BLINK], -1
+    mov ax, [SPEED]
+    inc ax
+    mov [INT_GMOV], ax
+    inc word [CNT_DOTS]
+    inc word [CNT_DOTS_TEMP]
+    push 50
+    call UPDATE_SCORE
+
+    mov bx, GHOSTS
+TURN_LOOP:
+    neg byte [bx + G_DIR]
+    neg byte [bx + G_DIR + 1]
+    add bx, ARR_JMP
+    cmp bx, ARR_END
+    jnz TURN_LOOP
+
+    ret
+
+EAT_DOT:
+    inc word [CNT_DOTS]
+    inc word [CNT_DOTS_TEMP]
+    push 10
+    call UPDATE_SCORE
+    ret
 	
-	;DECREASE THE SPEED OF THE GHOSTS {
-		MOV AX, [SPEED]
-		INC AX
-		MOV [INT_GMOV], AX
-	;}
-	
-	;INCREMENT PACMAN'S DOT COUNTERS {
-		INC [WORD PTR CNT_DOTS]
-		INC [WORD PTR CNT_DOTS_TEMP]
-	;}
-	
-	;INCREASE SCORE BY 50 {
-		PUSH 50
-		CALL UPDATE_SCORE
-	;}
-	
-	;180 DEG TURN {
-		MOV BX, OFFSET GHOSTS
-		@@TURN_LOOP: ;{
-			NEG [BYTE PTR G_DIR]
-			NEG [BYTE PTR G_DIR + 1]
-			
-			ADD BX, [ARR_JMP]
-			CMP BX, [ARR_END]
-			JNZ @@TURN_LOOP
-		;}
-	;}
-	
-	@@END_PROC: ;{
-		RET
-	;}
-;}
-ENDP EAT_PP
-	
-PROC EAT_DOT
-;{
-	;INCREMENT PACMAN'S DOT COUNTERS {
-		INC [CNT_DOTS]
-		INC [CNT_DOTS_TEMP]
-	;}
-	
-	;INCREASE SCORE BY 10 {
-		PUSH 10
-		CALL UPDATE_SCORE
-	;}
-	
-	@@END_PROC: ;{
-		RET
-	;}
-;}
-ENDP EAT_DOT
