@@ -57,6 +57,7 @@ IDIR_L             equ 2
 IDIR_R             equ 3
 IDIR_N             equ 4
 
+
 ; Locations
 LOC_N              equ 0FFFFh
 
@@ -89,15 +90,12 @@ G_PDIR_R           equ BX + 22
 G_MINDOTS          equ BX + 24
 G_ENABLED          equ BX + 26
 
+
 ; Ghost Modes
 MODE_SCAT          equ 0
 MODE_CHASE         equ 1
 MODE_FRIGH         equ 2
 MODE_DEAD          equ 3
-
-; BX = GHOSTS.OFFSET + 24*ID
-; X|Y|T.X|T.Y|DIR|OBJ|COLOR|MODE|PDIR_U,D,L,R|
-; GHOSTS: |RED|PINK|BLUE|ORANGE|
 
 
 ; MAIN_MENU
