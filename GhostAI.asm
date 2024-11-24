@@ -1,204 +1,128 @@
-PROC RED_AI
-;{	
-	;AI: PACMAN IS HIS TARGET TILE.
-	
-	;PUSH REGS {
-		PUSH BX
-	;}
-	
-	;CODE {
-		;BX = BLINKY.BASE {
-			MOV BX, OFFSET GHOSTS
-		;}
-		
-		PUSH [PACX]
-		POP  [G_TARX]
-		
-		PUSH [PACY]
-		POP  [G_TARY]
+RED_AI:
+    push bx
 
-	;}
-	
-	@@END_PROC: ;{
-		POP BX
-		RET
-	;}
-;}
-ENDP RED_AI
+    lea bx, [GHOSTS]
 
-PROC PINK_AI
-;{
-	;AI: TRIES TO GET INFORNT OF PACMAN. HIS TARGET TILE IS 3 BLOCKS 
-	;FORWORD IN PACMAN'S CURRENT DIRECTION
-	
-	;PUSH REGS {
-		PUSH AX
-		PUSH BX
-		PUSH CX
-		PUSH DX
-	;}
-	
-	;CODE {
-		;BX = PINKY.BASE {
-			MOV BX, OFFSET GHOSTS
-			ADD BX, [ARR_JMP]
-		;}
-		
-		MOV AX, [PACX]
-		MOV DX, [PACY]
-		MOV CX, 3
-		
-		@@TILE_LOOP: ;{
-			;LITTLE ENDIAN
-			ADD AL, [BYTE PTR DIR + 1]
-			ADD DL, [BYTE PTR DIR]
-				
-			;HANDLE OVERFLOW: {
-				
-				CMP AL, 0F7h
-				JZ  @@OVERFLOW_L
-				
-				CMP AX, 207
-				JZ  @@OVERFLOW_R
-				JMP @@END_TILE
-				
-				
-				@@OVERFLOW_L:
-				MOV AX, 198
-				JMP @@END_TILE
-				
-				@@OVERFLOW_R:
-				MOV AX, 0
-				JMP @@END_TILE
-			;}
-			
-			@@END_TILE:
-			LOOP @@TILE_LOOP
-		;}
-		
-		MOV [G_TARX], AX
-		MOV [G_TARY], DX
-	;}
-	
-	@@END_PROC: ;{
-		POP DX
-		POP CX
-		POP BX
-		POP AX
-		RET
-	;}
-;}
-ENDP PINK_AI
+    mov ax, [PACX]
+    mov [G_TARX], ax
 
-PROC BLUE_AI
-;{
-	;AI: CALCS THE DISTANCE FROM BLINKY(RED GHOST) TO PACMAN, AND DOUBLES IT.
-	;THE TILE IT POINTS TO AFTER DOUBLING THE DISTANCE IS INKY'S TARGET TILE.
-	
-	;PUSH REGS {
-		PUSH AX
-		PUSH BX
-		PUSH CX
-		PUSH DX
-	;}
-	
-	;CODE {
-		MOV BX, OFFSET GHOSTS; BX = BLINKY.BASE
-	
-		;CX = DIST.X, DX = DIST.Y {
-			MOV CX, [PACX]
-			MOV DX, [PACY]
-			
-			SUB CX, [G_X]
-			SUB DX, [G_Y]
-		;}
-		
-		;BX = INKY.BASE {
-			ADD BX, [ARR_JMP] 
-			ADD BX, [ARR_JMP]
-		;}
-		
-		;TARGET.X = PACMAN.X + DIST.X {
-			MOV AX, [PACX]
-			ADD AX, CX
-			MOV [G_TARX], AX
-		;}
-		
-		;TARGET.Y = PACMAN.Y + DIST.Y {
-			MOV AX, [PACY]
-			ADD AX, DX
-			MOV [G_TARY], AX
-		;}
-	;}
-	
-	@@END_PROC: ;{
-		POP DX
-		POP CX
-		POP BX
-		POP AX
-		RET
-	;}
-;}
-ENDP BLUE_AI
+    mov ax, [PACY]
+    mov [G_TARY], ax
 
-PROC ORANGE_AI
-;{
-	;AI: GOES FOR PACMAN. CHECKS IF PACMAN IS IN 6 TILES RANGE OF HIM,
-	;	 AND IF HE IS THAN CLYDE GOES BACK TO HIS SCATTER MODE TARGET.
-	
-	;PUSH REGS {
-		PUSH AX
-		PUSH BX
-		PUSH CX
-	;}
-	
-	;CODE {
-		;BX = CLYDE'S BASE ADDRESS {
-			MOV BX, OFFSET GHOSTS
-			ADD BX, [ARR_JMP]
-			ADD BX, [ARR_JMP]
-			ADD BX, [ARR_JMP]
-		;}
-		
-		
-		;CALC DIST FROM CLYDE TO PACMAN {
-			MOV AL, [BYTE PTR PACX]
-			MOV AH, [BYTE PTR PACY]
-			
-			MOV CL, [BYTE PTR G_X]
-			MOV CH, [BYTE PTR G_Y]
-			
-			PUSH AX
-			PUSH CX
-			CALL MATH_DIST	
-			POP AX
-		;}
-		
-		;DIST <= 6?
-		CMP AX, 6
-		JBE @@FALLBACK
-		
-		;IF NOT, TARGET = PACMAN {
-			PUSH [PACX]
-			POP  [G_TARX]
-			
-			PUSH [PACY]
-			POP  [G_TARY]
-			JMP  @@END_PROC
-		;}
-		
-		@@FALLBACK:	;IF YES, FALLBACK. {
-			MOV [WORD PTR G_TARX], 198
-			MOV [WORD PTR G_TARY], 189
-		;}
-		
-	;}
-	
-	@@END_PROC: ;{
-		POP CX
-		POP BX
-		POP AX
-		RET
-	;}
-;}
-ENDP ORANGE_AI
+    pop bx
+    ret
+
+PINK_AI:
+    push ax
+    push bx
+    push cx
+    push dx
+
+    lea bx, [GHOSTS]
+    add bx, [ARR_JMP]
+
+    mov ax, [PACX]
+    mov dx, [PACY]
+    mov cx, 3
+
+@@TILE_LOOP:
+    add al, [DIR + 1]
+    add dl, [DIR]
+
+    cmp al, 0F7h
+    jz @@OVERFLOW_L
+
+    cmp ax, 207h
+    jz @@OVERFLOW_R
+    jmp @@END_TILE
+
+@@OVERFLOW_L:
+    mov ax, 198h
+    jmp @@END_TILE
+
+@@OVERFLOW_R:
+    mov ax, 0
+    jmp @@END_TILE
+
+@@END_TILE:
+    loop @@TILE_LOOP
+
+    mov [G_TARX], ax
+    mov [G_TARY], dx
+
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+BLUE_AI:
+    push ax
+    push bx
+    push cx
+    push dx
+
+    lea bx, [GHOSTS]
+
+    mov cx, [PACX]
+    mov dx, [PACY]
+
+    sub cx, [G_X]
+    sub dx, [G_Y]
+
+    add bx, [ARR_JMP]
+    add bx, [ARR_JMP]
+
+    mov ax, [PACX]
+    add ax, cx
+    mov [G_TARX], ax
+
+    mov ax, [PACY]
+    add ax, dx
+    mov [G_TARY], ax
+
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+ORANGE_AI:
+    push ax
+    push bx
+    push cx
+
+    lea bx, [GHOSTS]
+    add bx, [ARR_JMP]
+    add bx, [ARR_JMP]
+    add bx, [ARR_JMP]
+
+    mov al, [PACX]
+    mov ah, [PACY]
+
+    mov cl, [G_X]
+    mov ch, [G_Y]
+
+    push ax
+    push cx
+    call MATH_DIST
+    pop ax
+
+    cmp ax, 6
+    jbe @@FALLBACK
+
+    mov ax, [PACX]
+    mov [G_TARX], ax
+
+    mov ax, [PACY]
+    mov [G_TARY], ax
+    jmp @@END_PROC
+
+@@FALLBACK:
+    mov word [G_TARX], 198h
+    mov word [G_TARY], 189h
+
+    pop cx
+    pop bx
+    pop ax
+    ret
