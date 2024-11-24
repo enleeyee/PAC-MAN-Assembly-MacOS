@@ -1,890 +1,469 @@
-PROC TestWin
-;{
-	;IS THE SCREEN CLEAR? {
-		CALL SCAN_SCREEN; IS THE SCREEN CLEAR?
-		JC   @@WIN		; JMP CLEAR, @@WIN.
-		JMP  @@END_PROC ; IF NOT CLEAR, EXIT.
-	;}
-	
-	@@WIN: ;{
-		MOV BX, OFFSET GHOSTS
-		@@CLEAR_LOOP: ;{
-			CALL G_CLEAR
-			ADD BX, [ARR_JMP]
-			CMP BX, [ARR_END]
-			JNZ @@CLEAR_LOOP
-		;}
+TestWin:
+    call SCAN_SCREEN 
+    jc @@WIN         
+    jmp @@END_PROC   
 
-		CALL LAYOUT_BLINK
-		CALL NEW_LEVEL
-	;}
-	
-	@@End_Proc: ;{
-		RET
-	;}
-;}
-ENDP TestWin
+@@WIN:
+    mov bx, GHOSTS
+@@CLEAR_LOOP:
+    call G_CLEAR
+    add bx, [ARR_JMP]
+    cmp bx, [ARR_END]
+    jnz @@CLEAR_LOOP
 
-PROC TestLose
-;{
-	PUSH AX
-	PUSH BX
-	MOV  BX, OFFSET GHOSTS 
-	
-	@@COLL_LOOP:
-	;{
-		;IS THE GHOST ENABLED? {
-			CMP [WORD PTR G_ENABLED], TRUE
-			JNZ @@END_LOSE	;IF NO, EXIT
-		;}
-		
-		;IF YES:
-		;IS PACX = G_X? {
-			MOV AX, [PACX]
-			CMP AX, [G_X]
-			JNZ @@END_LOSE ;IF NO
-		;}
-		;IF YES:
-		
-		;IS PACY = G_Y? {
-			MOV AX, [PACY]
-			CMP AX, [G_Y]
-			JNZ @@END_LOSE ;IF NO
-		;}
+    call LAYOUT_BLINK
+    call NEW_LEVEL
+    jmp @@END_PROC
 
-		;IF YES, THERE IS A COLLISION {	
-			
-			;ARE THE GHOSTS FIRGHTENED?
-			CMP [IS_FRIGH], TRUE
-			JZ  @@EAT	;IF YES, EAT THE GHOST.
-			
-			;KILL PACMAN {	
-				;DELAY FOR A BIT {
-					PUSH 0Eh	
-					PUSH 4000h	
-					CALL DELAY
-				;}
-				
-				;KILL PACMAN {
-					CALL DIE
-					
-					;FLUSH BUFFER {
-						XOR AL, AL
-						MOV AH, 0CH
-						INT 21H
-					;}
+@@END_PROC:
+    ret
 
-					ADD SP, 10		;UPDATE STACK POINTER BECAUSE OF DIRECT JMP.
-					JMP GetFirstDir	;IF NO, RESET THE GAME.
-				;}
-			;}
-			
-		;}
+TestLose:
+    push ax
+    push bx
+    mov bx, GHOSTS
 
-		@@EAT: ;{
-			CALL EAT_GHOST
-		;}
-		
-		@@END_LOSE: ;{
-			ADD BX, [ARR_JMP]
-			CMP BX, [ARR_END]
-			JNZ @@COLL_LOOP
-		;}
-	;}
-	
-	POP BX
-	POP AX
-	RET
-;}
-ENDP TestLose
+@@COLL_LOOP:
+    cmp [G_ENABLED], TRUE
+    jnz @@END_LOSE 
 
-PROC GAME_INPUT
-;{
-	PUSH AX
-	PUSH CX
-	PUSH DX
-	
-	;CODE 
-	;{
-		;NEW DATA? {
-			MOV AH, 1 ;Get the State of the keyboard
-			INT 16H   ;This interruption is responsible for 
-			          ;obtaining basic keyboard functionality,
-			          ;is responsible for collecting the keystrokes,
-			          ;obtain the status of the buffer of keyboard,
-			          ;The standard encoding of the keyboard that offers 
-			          ;the INT 16h is a US keyboard. 
-			          ;source wikipedia
+    mov ax, [PACX]
+    cmp ax, [G_X]
+    jnz @@END_LOSE 
 
+    mov ax, [PACY]
+    cmp ax, [G_Y]
+    jnz @@END_LOSE 
 
-			
-			JNZ @@NEWDATA 	;NEW DATA
-			JMP	@@END_PROC	;ELSE, NO DATA
-		;}
-		
-		;HANDLE INCOMING NEW DATA {
-			@@NEWDATA:
-			;CLEAR BUFFER FROM DATA
-			MOV AH, 0
-			INT 16H   ;INT 16h AH=00h - read keystroke;
-			
-			;CX = centerX, DX = centerY ;{
-				MOV CX, [PACX]
-				MOV DX, [PACY]
-				
-				ADD CX, 4
-				ADD DX, 4
-			;}
-			
-			;CHECK NEW DATA
-	            ; THIS VALUS ARE STORED IN COLOR.ASM
-				;UP ARROW?
-				CMP AH, ARR_U  ; ARRU_U EQU 48h
-				JZ  @@UP
-				
-				;DOWN ARROW?
-				CMP AH, ARR_D   ;ARR_D 	EQU 50h
-				JZ  @@DOWN
-				
-				;LEFT ARROW?
-				CMP AH, ARR_L    ;ARR_L EQU 4Bh
-				JZ  @@LEFT
-				
-				;RIGHT ARROW?
-				CMP AH, ARR_R    ;ARR_R EQU 4DH
-				JZ  @@RIGHT
-				
-				;ESC KEY?
-				CMP AH, 1        ;1 FOR ESC KEY
-				JZ  @@PAUSE      ;PRINTS THE PAUSE INFORMATION
-				JMP @@END_PROC
-				
-				@@PAUSE: ;{
-				
-					;PRINT "PAUSED" {
-						PUSH 29
-						PUSH 5
-						CALL TEXT_SET_CURPOS
-						
-						PUSH OFFSET STR_PAUSED
-						CALL TEXT_PRINT_MSG
-					;}	
-					
-					;PRINT "PRESS 'E' TO EXIT" {
-						PUSH 27
-						PUSH 6
-						CALL TEXT_SET_CURPOS
-						
-						PUSH OFFSET STR_PAUSED_1
-						CALL TEXT_PRINT_MSG
-					;}
-					
-					;PRINT "PRESS 'R' TO RESUME" {
-						PUSH 26
-						PUSH 7
-						CALL TEXT_SET_CURPOS
-						
-						PUSH OFFSET STR_PAUSED_2
-						CALL TEXT_PRINT_MSG
-					;}
-					
-					@@PAUSE_LOOP: ;{
-					
-						
-						;GET INPUT {
-							MOV AH, 7
-							INT 21H
-						;}
-						
-						;INPUT = 'e'? {
-							CMP  AL, 'e'
-							JNZ  @@DONT_EXIT ;IF NO, CONTINUE.
-							CALL END_GAME
-							CALL MAINMENU
-						;}
-						
-						@@DONT_EXIT: ;(INPUT = 'r'?) {
-							CMP AL, 'r'	
-							JNZ @@PAUSE_LOOP ;IF NO GET ANOTHER INPUT.
-							
-							;CLEAR TEXT {
-								PUSH 208
-								PUSH 40
-								PUSH 96
-								PUSH 24
-								PUSH BLACK
-								CALL GRAPHICS_PRINTRECT
-							;}
-							
-							JMP @@END_PROC ;IF YES, RESUME THE GAME.
-						;}
-					;}
-				;}
-		;}
-		
-		;SET NEW DIRECTION {
-			
-			@@UP: ;{
-				SUB DX, 9
-				MOV AX, DIR_U
-				JMP @@Update
-			;}
-			
-			@@DOWN: ;{
-				ADD DX, 9
-				MOV AX, DIR_D
-				JMP @@Update
-			;}
-			
-			@@LEFT: ;{
-				SUB CX, 9
-				MOV AX, DIR_L
-				JMP @@Update
-			;}
-			
-			@@RIGHT: ;{
-				ADD CX, 9
-				MOV AX, DIR_R
-			;}
-		;}
-		
-	;}
-	
-	@@Update:
-	;Is The Direction Clear? {		
-		PUSH CX
-		PUSH DX
-		CALL CLEAR_MOVE
-		JNC  @@NextDir
-	;}
-	
-	MOV [DIR], AX
-	MOV [WORD PTR NEXTDIR], DIR_N
-	JMP @@END_PROC
-	
-	@@NextDir:
-	MOV [NEXTDIR], AX
-	
-	@@END_PROC: ;{
-		;FLUSH BUFFER {
-			XOR AL, AL
-			MOV AH, 0CH
-			INT 21H
-		;}
-		
-		POP DX
-		POP CX
-		POP AX
-		RET
-	;}
-;}
-ENDP GAME_INPUT
+    cmp [IS_FRIGH], TRUE
+    jz @@EAT 
 
-PROC EAT_GHOST
-;{
-	;DISABLE THE GHOST AND "KILL" IT {
-		MOV  [WORD PTR G_ENABLED], FALSE
-		MOV  [WORD PTR G_MODE], MODE_DEAD
-	;}
-	
-	CALL G_CLEAR
-	CALL PAC_ANIMATION	;PRINT PACMAN
-	
-	;UPDATE SCORE {
-		PUSH [EATGHOST]
-		CALL UPDATE_SCORE
-		SHL  [EATGHOST], 1
-	;}
-	
-	;EAT THE GHOST'S OBJ {
-		
-		;OBJ = DOT? {
-			CMP [WORD PTR G_OBJ], OBJ_DOT
-			JZ  @@DOT
-		;}
-		
-		;OBJ = PP? {
-			CMP [WORD PTR G_OBJ], OBJ_PP
-			JNZ @@END_PROC
-		;}
-		
-		;PP {
-			CALL EAT_PP
-			JMP  @@END_PROC
-		;}
-		
-		@@DOT: ;{
-			CALL EAT_DOT
-		;}
-	;}
-	
-	@@END_PROC: ;{
-		;DELAY WHEN EATING A GHOST {
-			PUSH 06h
-			PUSH 4000h
-			CALL DELAY
-		;}
-		
-		;CLEAR NUMBER {
-			PUSH 29
-			PUSH 13
-			CALL TEXT_SET_CURPOS
-			
-			PUSH BLACK
-			PUSH OFFSET PRINT_DEC
-			CALL TEXT_COLORSTR
-		;}
-		
-		RET
-	;}
-;}
-ENDP EAT_GHOST
+    push 0Eh
+    push 4000h
+    call DELAY
 
-PROC UPDATE_SCORE
-;{
-	;START PROC {
-		PUSH BP
-		MOV  BP, SP
-		NUMBER EQU [WORD PTR BP + 4]
-		PUSH AX
-	;}
+    call DIE
+    xor al, al
+    mov ah, 0Ch
+    int 21h
+    add sp, 10
+    jmp GetFirstDir 
 
-	;UPDATE SCORE {
-		MOV AX, NUMBER
-		ADD [SCORE], AX
-	;}
+@@EAT:
+    call EAT_GHOST
 
-	;IS THE EXTRA_LIVE_FLAG ON? {
-		CMP [BYTE PTR HP_FLAG], TRUE
-		JZ  @@PRINT_SCORE ;IF YES, PRINT THE SCORE
-	;}
-	
-	;IF NO, THEN IS (SCORE >= 10,000)? {
-		CMP [WORD PTR SCORE], 10000
-		JB  @@PRINT_SCORE	;IF NO, PRINT THE SCORE		
-	;}
-	
-	;IF YES, GIVE PACMAN AN EXTRA LIFE {
-		INC  [LIVES]
-		CALL PRINT_LIVES
-		MOV  [BYTE PTR HP_FLAG], TRUE
-	;}
-	
-	@@PRINT_SCORE: ;{
-		PUSH 29
-		PUSH 12
-		CALL TEXT_SET_CURPOS
-		
-		PUSH OFFSET ARR_DEC
-		PUSH [SCORE]
-		CALL HEX2DEC
-		
-		PUSH OFFSET ARR_DEC
-		CALL TEXT_PRINTDEC
-	;}
-	
-	CMP NUMBER, 50
-	JBE @@END_PROC
-	
-	;PRINT NUMBER {
-		PUSH 29
-		PUSH 13
-		CALL TEXT_SET_CURPOS
-		
-		PUSH OFFSET ARR_DEC
-		PUSH NUMBER
-		CALL HEX2DEC
-		
-		PUSH OFFSET ARR_DEC
-		CALL TEXT_PRINTDEC
-		
-		PUSH 29
-		PUSH 13
-		CALL TEXT_SET_CURPOS
-		
-		PUSH GREEN
-		PUSH OFFSET PRINT_DEC
-		CALL TEXT_COLORSTR
-	;}
-	
-	@@END_PROC: ;{
-		POP AX
-		POP BP
-		RET 2
-	;}
-;}
-ENDP UPDATE_SCORE
+@@END_LOSE:
+    add bx, [ARR_JMP]
+    cmp bx, [ARR_END]
+    jnz @@COLL_LOOP
 
-PROC DIE
-;{
-	PUSH BX
-	;IF PACMAN IS ON TO A GHOST, CLEAR HER OBJECT {
-		MOV [WORD PTR G_OBJ], OBJ_VOID
-	;}
-	
-	;DEC LIVES {
-		DEC  [WORD PTR LIVES]
-		CALL PRINT_LIVES
-	;}
-	
-	;CLEAR GHOSTS {
-		MOV BX, OFFSET GHOSTS
-		@@CLEAR: ;{
-			CALL G_CLEAR
-			ADD BX, [ARR_JMP]
-			CMP BX, [ARR_END]
-			JNZ @@CLEAR
-		;}
-	;}
-	
-	;PLAY THE LOSING ANIMATION {
-		CALL PLAY_LOSE_ANI
-	;}
-	
-	;RESET VARIABLES {
-		CALL RESET_LIFE
-	;}
-	
-	;IS PACMAN OUT OF LIVES? {
-		CMP [WORD PTR LIVES], 0
-		JNZ @@PRINT_PAC 
-		
-		CALL END_GAME
-		CALL MAINMENU
-	;}
-	
-	@@PRINT_PAC: ;{
-		CALL PAC_PRINT
-	;}
-	
-	POP BX
-	RET
-;}
-ENDP DIE
+    pop bx
+    pop ax
+    ret
 
-PROC PRINT_LIVES
-;{
-	;START_PROC {
-		PUSH AX
-		PUSH CX
-		;JMP  @@END_PROC
-	;}
-	
-	;CLEAR LIVES {
-		PUSH 208
-		PUSH 0
-		PUSH 112 ;320 - 208 = 112
-		PUSH 9
-		PUSH BLACK
-		CALL GRAPHICS_PRINTRECT
-	;}
-	
-	;PRINT LIVES {
-		;IF LIVES = 0, DONT PRINT.
-		CMP [WORD PTR LIVES], 0
-		JZ  @@END_PROC
-		
-		;ELSE, PRINT [LIVES] TIMES
-		MOV CX, [LIVES]
-		MOV AX, 208; 208 = 207edge of the layout + 1px space
-		
-		@@LIFE_LOOP: ;{
-			PUSH OFFSET PACMAN_R_2
-			PUSH YELLOW
-			PUSH AX
-			PUSH 0
-			
-			CALL GRAPHICS_PRINTIMAGE
-			ADD AX, 10 ;14 = 9px per image + 1px Space
-			
-			LOOP @@LIFE_LOOP
-		;}
-	;}
-	
-	@@END_PROC: ;{
-		POP CX
-		POP AX
-	;}
-RET
-;}
-ENDP PRINT_LIVES
+GAME_INPUT:
+    push ax
+    push cx
+    push dx
 
-PROC INPUT_LOOP
-;{
-	@@LOOP: ;{
-		CALL GAME_INPUT
-		JMP @@LOOP
-	;}
+    mov ah, 1
+    int 16h
+    jnz .NEWDATA
+    jmp .END_PROC
 
-	RET
-;}
-ENDP INPUT_LOOP
+.NEWDATA:
+    mov ah, 0
+    int 16h
 
-PROC NEW_LEVEL
-;{
-	;INC LEVEL & UPDATE DIFFICULTY {
-		INC [WORD PTR LEVEL]
-		
-		@@DIFF_0: ;{
-			CMP  [WORD PTR LEVEL], 1
-			JA   @@DIFF_1
-			CALL SET_DIFFICULTY_0
-			JMP  @@RESET_GAME
-		;}
-		
-		@@DIFF_1: ;{
-			CMP [WORD PTR LEVEL], 2
-			JA  @@DIFF_2
-			CALL SET_DIFFICULTY_1
-			JMP  @@RESET_GAME
-		;}
-		
-		@@DIFF_2: ;{
-			CMP [WORD PTR LEVEL], 3
-			JA  @@DIFF_3
-			CALL SET_DIFFICULTY_2
-			JMP  @@RESET_GAME
-		;}
-		
-		@@DIFF_3: ;{
-			CMP [WORD PTR LEVEL], 5
-			JA  @@DIFF_4
-			CALL SET_DIFFICULTY_3
-			JMP  @@RESET_GAME
-		;}
-		
-		@@DIFF_4: ;{
-			CMP [WORD PTR LEVEL], 7
-			JA  @@DIFF_5
-			CALL SET_DIFFICULTY_4
-			JMP  @@RESET_GAME
-		;}
-		
-		@@DIFF_5: ;{
-			CMP  [WORD PTR LEVEL], 10
-			JA   @@DIFF_6
-			CALL SET_DIFFICULTY_5
-			JMP  @@RESET_GAME
-		;}
-		
-		@@DIFF_6: ;{
-			CALL SET_DIFFICULTY_6
-		;}
-	;}
-	 
-	@@RESET_GAME: ;{
-		CALL LAYOUT_CLEAR	;CLEAR LAYOUT, DOTS, GHOSTS, PACMAN
-		CALL LAYOUT_PRINT_ALLDOTS;PRINT DOTS
-		MOV  AX, BLUE
-		CALL LAYOUT_PRINT	;PRINT LAYOUT
-		
-		CALL RESET_LIFE
-		CALL PAC_PRINT
-		CALL PRINT_LIVES	
+    mov cx, [PACX]
+    mov dx, [PACY]
+    add cx, 4
+    add dx, 4
 
-	;}
-	
-	;GENERAL STUFF {
-		MOV [WORD PTR CNT_DOTS], 0	
-		MOV [BYTE PTR IS_FRIGH], 0
-		MOV [WORD PTR EATGHOST], 200
-		
-		;print str_score {
-			PUSH 29
-			PUSH 11
-			CALL TEXT_SET_CURPOS
-			
-			PUSH OFFSET STR_SCORE
-			CALL TEXT_PRINT_MSG
-		;}
-		
-		;print score {
-			PUSH 29
-			PUSH 12
-			CALL TEXT_SET_CURPOS
-			
-			PUSH OFFSET ARR_DEC
-			PUSH [SCORE]
-			CALL HEX2DEC
-			
-			PUSH OFFSET ARR_DEC
-			CALL TEXT_PRINTDEC
-		;}
-	;}
+    cmp ah, ARR_U
+    jz .UP
+    cmp ah, ARR_D
+    jz .DOWN
+    cmp ah, ARR_L
+    jz .LEFT
+    cmp ah, ARR_R
+    jz .RIGHT
+    cmp ah, 1   
+    jz .PAUSE
+    jmp .END_PROC
 
-	;FLUSH BUFFER {
-		XOR AL, AL
-		MOV AH, 0CH
-		INT 21H
-	;}
-	
-	ADD SP, 10		;UPDATE SP BECAUSE OF DIRECT JMP.
-	JMP GetFirstDir	;START THE GAME.
-	RET
-;}
-ENDP NEW_LEVEL
+.PAUSE:
+    push 29
+    push 5
+    call TEXT_SET_CURPOS
+    push str_PAUSED
+    call TEXT_PRINT_MSG
 
-PROC PLAY_LOSE_ANI
-;{
-	;START PROC {
-		PUSH BX
-		PUSH CX
-	;}
-	
-	;PLAY ANIMATION {
-		;PRINT 1st FRAME {
-			CALL PAC_CLEAR
-			CALL PAC_PRINT
-	
-			PUSH 2
-			PUSH 0BF20h
-			CALL DELAY
-			
-			CALL PAC_CLEAR
-		;}
-		
-		;PRINT 2nd-7th FRAMES {
-			MOV BX, OFFSET LOSE_ANI
-			MOV CX, 6
-			
-			@@ANIMATION_LOOP: ;{
-				
-				;PRINT FRAME {
-					PUSH [BX]
-					PUSH YELLOW
-					PUSH [PACX]
-					PUSH [PACY]
-					CALL GRAPHICS_PRINTIMAGE
-				;}
-				
-				;DELAY BETWEEN FRAMES {
-					PUSH 2
-					PUSH 0BF20h
-					CALL DELAY
-				;}
-				
-				;CLEAR FRAME {
-					CALL PAC_CLEAR
-				;}
-				
-				ADD BX, 2
-				LOOP @@ANIMATION_LOOP
-			;}
-		;}
-	;}
-	
-	@@END_PROC: ;{
-		POP CX
-		POP BX
-		RET
-	;}
-;}
-ENDP PLAY_LOSE_ANI
+    push 27
+    push 6
+    call TEXT_SET_CURPOS
+    push str_PAUSED_1
+    call TEXT_PRINT_MSG
 
-PROC RESET_LIFE
-;{
-	PUSH AX
-	
-	;RESET GHOSTS {		
-		CALL G_ZERO
-		CALL G_INIT
-	;}
-	
-	;RESET_TIMERS: {
-		
-		;MOVE TIMERS {
-			MOV AX, [SPEED]
-			
-			MOV  [INT_MOV],  AX
-			MOV  [WORD PTR CNT_MOV], 0
-	        
-			MOV  [INT_GMOV], AX
-			MOV  [WORD PTR CNT_GMOV], 0
-		;}
-    
-		;MODE SWAPING {
-			;1ST SCAT {
-				MOV  AX, [DUR_1ST_SCAT]
-				MOV  [INT_MODE], AX
-				MOV  [WORD PTR CNT_MODE], 0
-			;}
-			
-			;CHASE & SCATTER DURATIONS {
-				MOV AX, [DUR_CHASE]
-				MOV [INT_CHASE], AX
-				
-				MOV AX, [DUR_SCAT]
-				MOV [INT_SCAT], AX
-				
-			;}
-		;}
-		
-		;FRIGHTENED & BLINK TIMER {
-			MOV AX, [DUR_FRI]
-			MOV [INT_FRI], AX
-			MOV [CNT_FRI], 0
-			
-			MOV [CNT_BLINK], 0
-		;}
-	;}
-	
-	;RESET PACMAN {
-		MOV  [WORD PTR PACX], 99
-		MOV  [WORD PTR PACY], 144
-		MOV  [WORD PTR DIR], DIR_N
-		MOV  [WORD PTR NEXTDIR], DIR_N
-		MOV  [WORD PTR CNT_DOTS_TEMP], 0
-		MOV  [WORD PTR PAC_FP], 0
-	;}
-	
-	POP AX
-	RET
-;}
-ENDP RESET_LIFE
+    push 26
+    push 7
+    call TEXT_SET_CURPOS
+    push str_PAUSED_2
+    call TEXT_PRINT_MSG
 
-PROC SCAN_SCREEN
-;{
-	;START PROC {
-		PUSH AX
-		PUSH BX
-		PUSH CX
-		PUSH DX
-	;}
-	
-	MOV BX, OFFSET GHOSTS
-	@@GHOST_LOOP: ;{
-	
-		;IS THE GHOST DISABLED? {
-			CMP [WORD PTR G_ENABLED], FALSE
-			JZ  @@GHOST_END	;IF YES, EXIT THE LOOP
-		;}
-		
-		;IS GHOST.OBJ = OBJ_DOT? {
-			CMP [WORD PTR G_OBJ], OBJ_DOT
-			JZ  @@END_PROC	;IF YES, EXIT PROCEDURE
-		;}
-		
-		;IS GHOST.OBJ = OBJ_PP? {
-			CMP [WORD PTR G_OBJ], OBJ_PP
-			JZ  @@END_PROC ;IF YES, EXIT PROCEDURE
-		;}
-		
-		@@GHOST_END: ;{
-			ADD BX, [ARR_JMP]
-			CMP BX, [ARR_END]
-			JNZ @@GHOST_LOOP
-		;}
-	;}
-	
-	;IF NONE OF THE GHOTS OBJ = DOT/PP, CONTINUE:
-	
-	;SCAN THE SCREEN FOR DOTS {
-		MOV DX, 13
-		
-		;PRINT DOTS {	
-			@@Y_LOOP: ;{
-				MOV CX, 13
-				
-				@@X_LOOP: ;{
-					PUSH CX
-					PUSH DX
-					CALL GRAPHICS_GETCOLOR
-					
-					;IS THERE A DOT/PP AT THIS LOCATION? {
-						CMP AX, WHITE
-						JZ  @@CLC		;IF YES, OUTPUT 0.
-						
-						CMP AX, PP_PINK
-						JZ  @@CLC		;IF YES, OUUTPUT 0.
-					;}
-					
-					;X_END {
-						ADD CX, 9
-						CMP CX, 202
-						JNZ @@X_LOOP
-					;}
-				;}
-				
-				ADD DX, 9
-				CMP DX, 193
-				JB  @@Y_LOOP
-			;}
-		;}
-	;}
-	
-	;@@STC: PACMAN WON {
-		STC
-		JMP @@END_PROC
-	;}
-	
-	@@CLC: ;PACMAN DIDN'T WIN { 
-		CLC
-	;}
-	
-	@@END_PROC: ;{
-		POP DX
-		POP CX
-		POP BX
-		POP AX
-		RET
-	;}
-;}
-ENDP SCAN_SCREEN
+.PAUSE_LOOP:
+    mov ah, 7
+    int 21h
+    cmp al, 'e'
+    jnz .DONT_EXIT
+    call END_GAME
+    call MAINMENU
 
-PROC NEW_GAME
-;{
-	MOV [WORD PTR LEVEL], 0
-	MOV [WORD PTR LIVES], 4
-	MOV [WORD PTR SCORE], 0
-	
-	MOV [BYTE PTR HP_FLAG], FALSE
-	
-	CALL NEW_LEVEL
-	RET
-;}
-ENDP NEW_GAME
+.DONT_EXIT:
+    cmp al, 'r'
+    jnz .PAUSE_LOOP
+    push 208
+    push 40
+    push 96
+    push 24
+    push BLACK
+    call GRAPHICS_PRINTRECT
+    jmp .END_PROC
 
-PROC END_GAME
-;{
-	CALL LAYOUT_CLEAR
+.UP:
+    sub dx, 9
+    mov ax, DIR_U
+    jmp .UPDATE
+
+.DOWN:
+    add dx, 9
+    mov ax, DIR_D
+    jmp .UPDATE
+
+.LEFT:
+    sub cx, 9
+    mov ax, DIR_L
+    jmp .UPDATE
+
+.RIGHT:
+    add cx, 9
+    mov ax, DIR_R
+
+.UPDATE:
+    push cx
+    push dx
+    call CLEAR_MOVE
+    jnc .NEXTDIR
+    mov [DIR], ax
+    mov word [NEXTDIR], DIR_N
+    jmp .END_PROC
+
+.NEXTDIR:
+    mov [NEXTDIR], ax
+
+.END_PROC:
+    xor al, al
+    mov ah, 0Ch
+    int 21h
+
+    pop dx
+    pop cx
+    pop ax
+    ret
+
+EAT_GHOST:
+    mov [G_ENABLED], 0
+    mov [G_MODE], MODE_DEAD
+
+    call G_CLEAR
+    call PAC_ANIMATION
+
+    push [EATGHOST]
+    call UPDATE_SCORE
+    shl word [EATGHOST], 1
+
+    cmp [G_OBJ], OBJ_DOT
+    jz .DOT
+    cmp [G_OBJ], OBJ_PP
+    jnz .END_PROC
+    call EAT_PP
+    jmp .END_PROC
+
+.DOT:
+    call EAT_DOT
+
+.END_PROC:
+    push 06h
+    push 4000h
+    call DELAY
+
+    push 29
+    push 13
+    call TEXT_SET_CURPOS
+    push BLACK
+    push PRINT_DEC
+    call TEXT_COLORSTR
+    ret
+
+UPDATE_SCORE:
+    push bp
+    mov bp, sp
+    push ax
+
+    mov ax, [bp+4]  
+    add [SCORE], ax
+
+    cmp byte [HP_FLAG], 1
+    jz .PRINT_SCORE
+    cmp [SCORE], 10000
+    jb .PRINT_SCORE
+    inc [LIVES]
+    call PRINT_LIVES
+    mov [HP_FLAG], 1
+
+.PRINT_SCORE:
+    push 29
+    push 12
+    call TEXT_SET_CURPOS
+    push ARR_DEC
+    push [SCORE]
+    call HEX2DEC
+    push ARR_DEC
+    call TEXT_PRINTDEC
+
+    cmp [bp+4], 50
+    jbe .END_PROC
+    push 29
+    push 13
+    call TEXT_SET_CURPOS
+    push ARR_DEC
+    push [bp+4]
+    call HEX2DEC
+    push ARR_DEC
+    call TEXT_PRINTDEC
+
+    push 29
+    push 13
+    call TEXT_SET_CURPOS
+    push GREEN
+    push PRINT_DEC
+    call TEXT_COLORSTR
+
+.END_PROC:
+    pop ax
+    pop bp
+    ret 2
+
+DIE:
+    push bx
+
+    mov [G_OBJ], OBJ_VOID
+
+    dec [LIVES]
+    call PRINT_LIVES
+
+    mov bx, GHOSTS
+.CLEAR:
+    call G_CLEAR
+    add bx, [ARR_JMP]
+    cmp bx, [ARR_END]
+    jnz .CLEAR
+
+    call PLAY_LOSE_ANI
+
+    call RESET_LIFE
+
+    cmp [LIVES], 0
+    jnz .PRINT_PAC
+    call END_GAME
+    call MAINMENU
+
+.PRINT_PAC:
+    call PAC_PRINT
+    pop bx
+    ret
+
+PRINT_LIVES:
+    push ax
+    push cx
+
+    push word 208
+    push word 0
+    push word 112
+    push word 9
+    push byte BLACK
+    call GRAPHICS_PRINTRECT
+
+    cmp word [LIVES], 0
+    jz .end_proc
+
+    mov cx, [LIVES]
+    mov ax, 208     
+
+.print_loop:
+    push word PACMAN_R_2
+    push byte YELLOW
+    push word ax
+    push word 0
+    call GRAPHICS_PRINTIMAGE
+    add ax, 10      
+    loop .print_loop
+
+.end_proc:
+    pop cx
+    pop ax
+    ret
+
+INPUT_LOOP:
+.loop:
+    call GAME_INPUT
+    jmp .loop
+    ret
+
+NEW_LEVEL:
+    inc word [LEVEL]
+
+    cmp word [LEVEL], 1
+    ja .diff_1
+    call SET_DIFFICULTY_0
+    jmp .reset_game
+
+.diff_1:
+    cmp word [LEVEL], 2
+    ja .diff_2
+    call SET_DIFFICULTY_1
+    jmp .reset_game
+
+.diff_2:
+    cmp word [LEVEL], 3
+    ja .diff_3
+    call SET_DIFFICULTY_2
+    jmp .reset_game
+
+.diff_3:
+    cmp word [LEVEL], 5
+    ja .diff_4
+    call SET_DIFFICULTY_3
+    jmp .reset_game
+
+.diff_4:
+    cmp word [LEVEL], 7
+    ja .diff_5
+    call SET_DIFFICULTY_4
+    jmp .reset_game
+
+.diff_5:
+    cmp word [LEVEL], 10
+    ja .diff_6
+    call SET_DIFFICULTY_5
+    jmp .reset_game
+
+.diff_6:
+    call SET_DIFFICULTY_6
+
+.reset_game:
+    call LAYOUT_CLEAR
+    call LAYOUT_PRINT_ALLDOTS
+    mov ax, BLUE
+    call LAYOUT_PRINT
+    call RESET_LIFE
+    call PAC_PRINT
+    call PRINT_LIVES
+
+    mov word [CNT_DOTS], 0
+    mov byte [IS_FRIGH], 0
+    mov word [EATGHOST], 200
+
+    push word 29
+    push word 11
+    call TEXT_SET_CURPOS
+    push word STR_SCORE
+    call TEXT_PRINT_MSG
+
+    push word 29
+    push word 12
+    call TEXT_SET_CURPOS
+    push word ARR_DEC
+    push word [SCORE]
+    call HEX2DEC
+    push word ARR_DEC
+    call TEXT_PRINTDEC
+
+    xor al, al
+    mov ah, 0Ch
+    int 21h
+
+    add sp, 10     
+    jmp GetFirstDir
+    ret
+
+PLAY_LOSE_ANI:
+    push bx
+    push cx
+
+    call PAC_CLEAR
+    call PAC_PRINT
+    push word 2
+    push dword 0BF20h
+    call DELAY
+    call PAC_CLEAR
+
+    mov bx, LOSE_ANI
+    mov cx, 6
+
+.animation_loop:
+    push word [bx]
+    push byte YELLOW
+    push word [PACX]
+    push word [PACY]
+    call GRAPHICS_PRINTIMAGE
+
+    push word 2
+    push dword 0BF20h
+    call DELAY
+
+    call PAC_CLEAR
+    add bx, 2
+    loop .animation_loop
+
+.end_proc:
+    pop cx
+    pop bx
+    ret
+
+RESET_LIFE:
+    push ax
+
+    call G_ZERO
+    call G_INIT
+
+    mov ax, [SPEED]
+    mov [INT_MOV], ax
+    mov word [CNT_MOV], 0
+    mov [INT_GMOV], ax
+    mov word [CNT_GMOV], 0
+
+    mov ax, [DUR_1ST_SCAT]
+    mov [INT_MODE], ax
+    mov word [CNT_MODE], 0
+
+    mov ax, [DUR_CHASE]
+    mov [INT_CHASE], ax
+    mov ax, [DUR_SCAT]
+    mov [INT_SCAT], ax
+
+    mov ax, [DUR_FRI]
+    mov [INT_FRI], ax
+    mov word [CNT_FRI], 0
+    mov word [CNT_BLINK], 0
+
+    mov word [PACX], 99
+    mov word [PACY], 144
+    mov word [DIR], DIR_N
+    mov word [NEXTDIR], DIR_N
+    mov word [CNT_DOTS_TEMP], 0
+    mov word [PAC_FP], 0
+
+    pop ax
+    ret
 	
-	;PRINT "GAME OVER" {
-		PUSH 15
-		PUSH 11
-		CALL TEXT_SET_CURPOS
-		
-		PUSH RED
-		PUSH OFFSET STR_GAMEOVER
-		CALL TEXT_COLORSTR
-	;}
-	
-	;PRINT SCORE {
-		PUSH 15
-		PUSH 13
-		CALL TEXT_SET_CURPOS
-		
-		PUSH OFFSET STR_SCORE
-		CALL TEXT_PRINT_MSG
-		;=============
-		PUSH 21
-		PUSH 13
-		CALL TEXT_SET_CURPOS
-	
-		PUSH OFFSET ARR_DEC
-		PUSH [SCORE]
-		CALL HEX2DEC
-		
-		PUSH OFFSET ARR_DEC
-		CALL TEXT_PRINTDEC
-	;}
-	
-	;DELAY 4 SECONDS {
-		PUSH 3Dh
-		PUSH 900h
-		CALL DELAY
-	;}
-	
-	RET
-	
-;}
-ENDP END_GAME
