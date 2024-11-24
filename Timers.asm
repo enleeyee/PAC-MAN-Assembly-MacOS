@@ -1,247 +1,193 @@
-PROC TMR_MOVE
-;{
-	;ON_TICK: MOVE PACMAN AND THE GHOSTS. ALSO CHECKS IF PACMAN IS LOSING.
-	PUSH AX
-	
-	;INCREMENT COUNTER {
-		INC [WORD PTR CNT_MOV]
-	;}
-	
-	;CHECK COUNTER & INTERVAL {
-		MOV AX, [INT_MOV]
-		CMP AX, [CNT_MOV]
-		JZ 	@@TICK
-		JMP @@END_PROC
-	;}
-	
-	@@TICK:
-	;{
-		MOV [WORD PTR CNT_MOV], 0
-		CALL PAC_MOVE
-		CALL TESTWIN
-		CALL TESTLOSE
-	;}
-	
-	@@END_PROC:
-	POP AX
-	RET
-;}
-ENDP TMR_MOVE
+section .data
+CNT_MOV dw 0
+INT_MOV dw 0
+CNT_MODE dw 0
+INT_MODE dw 0
+IS_FRIGH db 0
+PREV_MODE dw 0
+ARR_JMP dw 0
+ARR_END dw 0
+G_DIR dw 0
+MODE_SCAT dw 0
+MODE_CHASE dw 0
+MODE_DEAD dw 0
+G_BLINK dw 0
+G_MODE dw 0
+CNT_FRI dw 0
+INT_FRI dw 0
+EATGHOST dw 0
+SPEED dw 0
+CNT_GMOV dw 0
+INT_GMOV dw 0
+CNT_BLINK dw 0
+INT_BLINK dw 0
 
-PROC TMR_GMODE
-;{
-	;ON_TICK: SWAPS THE GHOSTS' MODES. IF SCATTER THEN SWITCH TO CHASE,
-	;		  IF CHASE THEN SWITCH TO SCATTER.
-	PUSH AX
-	PUSH BX
-	
-	;INCREMENT COUNTER {
-		;IF (IS_FRIGH = 1) {DON'T INC}, IF (IS_FRIGH = 0) {INC COUNT}
-		MOV AL, [IS_FRIGH]
-		DEC AL
-		NEG AL
-		XOR AH, AH
-		ADD [CNT_MODE], AX
-	;}
-	
-	;CHECK COUNTER & INTERVAL {
-		MOV AX, [INT_MODE]
-		CMP AX, [CNT_MODE]
-		JZ 	@@TICK
-		JMP @@END_PROC
-	;}
-	
-	@@TICK:
-	;{
-		MOV [WORD PTR CNT_MODE], 0
-		MOV BX, OFFSET GHOSTS
-		
-		;MODE = SCATTER? {
-			CMP [WORD PTR PREV_MODE], MODE_SCAT
-			JZ  @@CHASE	;IF YES, SWITCH TO CHASE.
-		;}
-		
-		;IF NO, SWITCH TO SCATTER {
-			PUSH [INT_SCAT]
-			POP  [INT_MODE]
-			
-			MOV AX, MODE_SCAT
-			MOV [PREV_MODE], AX 
-			
-			JMP @@MODE_LOOP
-		;}
-		
-		@@CHASE: ;{
-			PUSH [INT_CHASE]
-			POP  [INT_MODE]
-			
-			MOV AX, MODE_CHASE
-			MOV [PREV_MODE], AX
-		;}
-		
-		@@MODE_LOOP: ;{
-			PUSH AX
-			MOV [G_MODE], AX
-			
-			;180 DEGREES TURN {
-				MOV AX, [G_DIR]
-				NEG AL
-				NEG AH
-				MOV [G_DIR], AX
-			;}
-			
-			POP AX
-			
-			ADD BX, [ARR_JMP]
-			CMP BX, [ARR_END]
-			JNZ @@MODE_LOOP
-		;}
-		
-	;}
-	
-	@@END_PROC:
-	POP BX
-	POP AX
-	RET
-;}
-ENDP TMR_GMODE
+section .text
+global TMR_MOVE, TMR_GMODE, TMR_FRIGH, TMR_GMOVE, TMR_BLINK
 
-PROC TMR_FRIGH
-;{
-	;ON_TICK: TURNS OFF FRIGHTEND MODE AND REVIVES DEAD GHOSTS.
-	
-	PUSH AX
-	PUSH BX
-	
-	;INCREMENT COUNTER {
-		;IF (IS_FRIGH = 1) {INC COUNT}, IF (IS_FRIGH = 0) {DON'T INC}
-		MOV AL, [IS_FRIGH]
-		XOR AH, AH
-		ADD [CNT_FRI], AX
-	;}
-	
-	;CHECK COUNTER & INTERVAL {
-		MOV AX, [INT_FRI]
-		SUB AX, [CNT_FRI]
-		CMP AX, 20
-		JA  @@DONT_BLINK
-		
-		;BLINK {
-			CALL TMR_BLINK
-		;}
-		
-		@@DONT_BLINK: ;{
-			MOV AX, [INT_FRI]
-			CMP AX, [CNT_FRI]
-			JZ 	@@TICK
-			JMP @@END_PROC
-		;}
-	;}
-	
-	@@TICK:
-	;{
-			
-		MOV [WORD PTR EATGHOST], 200
-		MOV [WORD PTR CNT_FRI],  0
-		MOV [BYTE PTR IS_FRIGH], 0
-		MOV [WORD PTR G_BLINK],  -1
-		
-		PUSH [SPEED]
-		POP  [INT_GMOV]
-		
-		MOV BX, OFFSET GHOSTS
-		
-		@@DEAD_LOOP: ;{
-			;IS THIS GHOST DEAD? {
-				CMP [WORD PTR G_MODE], MODE_DEAD
-				JNZ  @@DEAD_END	;IF NO, JMP TO THE END OF THE LOOP.
-			;}
-			
-			;IF YES, REVIVE THE GHOST {
-				PUSH [PREV_MODE]
-				POP  [G_MODE]
-			;}
-			
-			@@DEAD_END: ;{
-				ADD BX, [ARR_JMP]
-				CMP BX, [ARR_END]
-				JNZ @@DEAD_LOOP
-			;}
-		;}
-	;}
-	
-	@@END_PROC:
-	POP BX
-	POP AX
-	RET
-;}
-ENDP TMR_FRIGH
+TMR_MOVE:
+    push ax
 
-PROC TMR_GMOVE
-;{
-	;ON_TICK: MOVES THE GHOSTS. ALSO CHECKS IF PACMAN IS LOSING.
-	PUSH AX
-	
-	;INCREMENT COUNTER {
-		INC [WORD PTR CNT_GMOV]
-	;}
-	
-	;CHECK COUNTER & INTERVAL {
-		MOV AX, [INT_GMOV]
-		CMP AX, [CNT_GMOV]
-		JBE @@TICK
-		JMP @@END_PROC
-	;}
-	
-	@@TICK:
-	;{
-		CALL TESTLOSE
-		MOV [WORD PTR CNT_GMOV], 0
-		CALL G_TARGET
-		CALL G_MOVE
-		CALL TESTLOSE
-	;}
-	
-	@@END_PROC:
-	POP AX
-	RET
-;}
-ENDP TMR_GMOVE
+    inc word [CNT_MOV]
 
-PROC TMR_BLINK
-;{
-	;ON_TICK: MAKE THE GHOSTS BLINK.
-	PUSH AX
-	PUSH BX
-	
-	;INCREMENT COUNTER {
-		INC [WORD PTR CNT_BLINK]
-	;}
-	
-	;CHECK COUNTER & INTERVAL {
-		MOV AX, [INT_BLINK]
-		CMP AX, [CNT_BLINK]
-		JBE @@TICK
-		JMP @@END_PROC
-	;}
-	
-	@@TICK:
-	;{
-		MOV  [WORD PTR CNT_BLINK], 0
-		NEG  [WORD PTR G_BLINK]
-		
-		MOV BX, OFFSET GHOSTS
-		@@PRINT_LOOP: ;{
-			CALL G_PRINT
-			ADD BX, [ARR_JMP]
-			CMP BX, [ARR_END]
-			JNZ @@PRINT_LOOP
-		;}
-	;}
-	
-	@@END_PROC:
-	POP BX
-	POP AX
-	RET
-;}
-ENDP TMR_BLINK
+    mov ax, [INT_MOV]
+    cmp ax, [CNT_MOV]
+    jz TMR_MOVE_TICK
+    jmp TMR_MOVE_END
+
+TMR_MOVE_TICK:
+    mov word [CNT_MOV], 0
+    call PAC_MOVE
+    call TESTWIN
+    call TESTLOSE
+
+TMR_MOVE_END:
+    pop ax
+    ret
+
+TMR_GMODE:
+    push ax
+    push bx
+
+    mov al, [IS_FRIGH]
+    dec al
+    neg al
+    xor ah, ah
+    add [CNT_MODE], ax
+
+    mov ax, [INT_MODE]
+    cmp ax, [CNT_MODE]
+    jz TMR_GMODE_TICK
+    jmp TMR_GMODE_END
+
+TMR_GMODE_TICK:
+    mov word [CNT_MODE], 0
+    mov bx, GHOSTS
+
+    cmp word [PREV_MODE], MODE_SCAT
+    jz TMR_GMODE_CHASE
+    push word [INT_SCAT]
+    pop [INT_MODE]
+    mov ax, MODE_SCAT
+    mov [PREV_MODE], ax
+    jmp TMR_GMODE_LOOP
+
+TMR_GMODE_CHASE:
+    push word [INT_CHASE]
+    pop [INT_MODE]
+    mov ax, MODE_CHASE
+    mov [PREV_MODE], ax
+
+TMR_GMODE_LOOP:
+    push ax
+    mov [G_MODE], ax
+
+    mov ax, [G_DIR]
+    neg al
+    neg ah
+    mov [G_DIR], ax
+    pop ax
+
+    add bx, [ARR_JMP]
+    cmp bx, [ARR_END]
+    jnz TMR_GMODE_LOOP
+
+TMR_GMODE_END:
+    pop bx
+    pop ax
+    ret
+
+TMR_FRIGH:
+    push ax
+    push bx
+
+    mov al, [IS_FRIGH]
+    xor ah, ah
+    add [CNT_FRI], ax
+
+    mov ax, [INT_FRI]
+    sub ax, [CNT_FRI]
+    cmp ax, 20
+    ja TMR_FRIGH_DONT_BLINK
+    call TMR_BLINK
+
+TMR_FRIGH_DONT_BLINK:
+    mov ax, [INT_FRI]
+    cmp ax, [CNT_FRI]
+    jz TMR_FRIGH_TICK
+    jmp TMR_FRIGH_END
+
+TMR_FRIGH_TICK:
+    mov word [EATGHOST], 200
+    mov word [CNT_FRI], 0
+    mov byte [IS_FRIGH], 0
+    mov word [G_BLINK], -1
+    push word [SPEED]
+    pop [INT_GMOV]
+
+    mov bx, GHOSTS
+
+TMR_FRIGH_DEAD_LOOP:
+    cmp word [G_MODE], MODE_DEAD
+    jnz TMR_FRIGH_DEAD_END
+    push word [PREV_MODE]
+    pop [G_MODE]
+
+TMR_FRIGH_DEAD_END:
+    add bx, [ARR_JMP]
+    cmp bx, [ARR_END]
+    jnz TMR_FRIGH_DEAD_LOOP
+
+TMR_FRIGH_END:
+    pop bx
+    pop ax
+    ret
+
+TMR_GMOVE:
+    push ax
+
+    inc word [CNT_GMOV]
+
+    mov ax, [INT_GMOV]
+    cmp ax, [CNT_GMOV]
+    jbe TMR_GMOVE_TICK
+    jmp TMR_GMOVE_END
+
+TMR_GMOVE_TICK:
+    call TESTLOSE
+    mov word [CNT_GMOV], 0
+    call G_TARGET
+    call G_MOVE
+    call TESTLOSE
+
+TMR_GMOVE_END:
+    pop ax
+    ret
+
+TMR_BLINK:
+    push ax
+    push bx
+
+    inc word [CNT_BLINK]
+
+    mov ax, [INT_BLINK]
+    cmp ax, [CNT_BLINK]
+    jbe TMR_BLINK_TICK
+    jmp TMR_BLINK_END
+
+TMR_BLINK_TICK:
+    mov word [CNT_BLINK], 0
+    neg word [G_BLINK]
+
+    mov bx, GHOSTS
+
+TMR_BLINK_PRINT_LOOP:
+    call G_PRINT
+    add bx, [ARR_JMP]
+    cmp bx, [ARR_END]
+    jnz TMR_BLINK_PRINT_LOOP
+
+TMR_BLINK_END:
+    pop bx
+    pop ax
+    ret

@@ -1,87 +1,62 @@
-	PROC Clock
-	;{
-		;CHECK CLOCK ;{
-			CALL getMill
-			SUB  DL, [CLOCK_BASE]
-			CMP  DL, 1
-			JAE  @@Clock
-			JMP  @@END_PROC
-		;}
-		
-		@@CLOCK: 
-		;{
-			CALL TMR_MOVE
-			CALL PAC_ANIMATION
-			CALL TMR_GMODE
-			CALL TMR_FRIGH
-			CALL TMR_GMOVE
-		;}
-		
-		;SetBase {
-			CALL getMill
-			XCHG [Clock_Base], DL
-		;}
-		
-		@@END_PROC:
-		RET
-	;}
-	ENDP CLOCK
+section .data
+CLOCK_BASE db 0 
 
-	PROC getMill
-	;{
-		;PUSH REGS
-		;{
-			PUSH AX
-			PUSH BX
-			PUSH CX
-		;}
-		
-		;GET TIME {
-			MOV AH, 2CH
-			INT 21H
-			XOR DH, DH
-		;}
-		
-		;POP REGS
-		;{
-			POP AX
-			POP BX
-			POP CX
-		;}
-		RET
-	;}
-	ENDP getMill
+section .bss
+Clock_Base resb 1  
 
-	;Description: Waits _CX:_DX milliseconds
-		
-		PROC DELAY
-		;{
-			;START_PROC ;{
-				_CX EQU [BP + 6]
-				_DX EQU [BP + 4]
-				
-				PUSH BP
-				MOV  BP, SP
-				
-				PUSH AX
-				PUSH CX
-				PUSH DX
-			;}
-			
-			;CODE {
-				MOV CX, _CX
-				MOV DX, _DX
-				MOV AH, 86h
-				INT 15h
-			;}
-			
-			@@END_PROC: ;{
-				POP DX
-				POP CX
-				POP AX
-				POP BP
-				RET 4
-			;}
-		;}
-		ENDP DELAY
-		
+section .text
+global Clock, getMill, DELAY
+
+Clock:
+    call getMill
+    sub dl, [CLOCK_BASE]
+    cmp dl, 1
+    jae @@Clock
+    jmp @@END_PROC
+
+@@Clock:
+    call TMR_MOVE
+    call PAC_ANIMATION
+    call TMR_GMODE
+    call TMR_FRIGH
+    call TMR_GMOVE
+
+    call getMill
+    xchg [Clock_Base], dl
+
+@@END_PROC:
+    ret
+
+getMill:
+    push ax
+    push bx
+    push cx
+
+    mov ah, 2Ch
+    int 21h
+    xor dh, dh
+
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+DELAY:
+    push bp
+    mov bp, sp
+
+    push ax
+    push cx
+    push dx
+
+    mov cx, [bp + 6]
+    mov dx, [bp + 4] 
+    mov ah, 86h
+    int 15h
+
+    pop dx
+    pop cx
+    pop ax
+    pop bp
+    ret 4
+	
