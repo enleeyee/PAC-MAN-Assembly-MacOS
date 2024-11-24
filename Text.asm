@@ -1,347 +1,202 @@
-	;Description: Takes a number and prints it in hex
+section .data
+printNumArr db 4 dup (0)
 
-	PROC TEXT_PRINT_NUM
-	;Input:	 	Num
-	;Output: 	prints Num on the screen
-	;Variables:	ArrayEnd
-	
-	;{
-		;params {
-			num equ [ss:bp + 4]
-		;}
-		
-		;BasePointer {
-			push bp
-			mov  bp, sp
-		;}
-		
-		;Local Variables {
-			sub sp, 2
-			ArrayEnd equ [ss:bp - 2]
-		;}
-		
-		;Push REGS
-		;{
-			pusha
-		;}
-		
-		;CODE
-		;{
-			mov  bx, OFFSET printNumArr
-			mov  cx, 10h
-			xchg ax, num
-			
-			mov ArrayEnd, bx
-			add bx, 3
+section .bss
+print_dec resb 6
 
-			@breakNum:
-			;{
-				xor dx, dx
-				div cx
-				mov [ds:bx], dl
-				
-				dec bx
-				cmp bx, ArrayEnd
-				jge @breakNum
-			;}
-			
-			mov bx, OFFSET printNumArr
-			add bx, 3
-			
-			@ToAscii:
-			;{
-				cmp [byte ptr ds:bx], 9
-				ja  toLetter
-				
-				add [byte ptr ds:bx], '0'
-				jmp exitToAscii
-				
-				toLetter:
-				add [byte ptr ds:bx], 37h	; 37h = 'A' - 0Ah 
-				
-				exitToAscii:
-				dec bx
-				cmp bx, ArrayEnd
-				jge @ToAscii
-			;}
-		
-			;Print Text {
-				PUSH OFFSET printNumArr
-				CALL TEXT_PRINT_MSG
-			;}
-			
-		;}
-		
-		;Pop REGS
-		;{
-			popa
-		;}
-		
-		
-		;Local Variables & BasePointer {
-			add sp, 2
-			pop bp
-		;}
-		
-		ret 2
-	;}
-	ENDP TEXT_PRINT_NUM
+section .text
+global TEXT_PRINT_NUM, TEXT_NEWLINE, TEXT_PRINT_MSG, TEXT_SET_CURPOS, TEXT_MODE, TEXT_PRINTDEC, TEXT_COLORSTR
 
-	PROC TEXT_NEWLINE
-	;{
-		;PUSH {
-			PUSH AX
-			PUSH DX
-		;}
-		
-		;PRINT {
-			MOV DL, 0Ah
-			MOV AH, 2
-			INT 21H
-			
-			MOV DL, 0Dh
-			INT 21H
-		;}
-		
-		;POP {
-			POP DX
-			POP AX
-		;}
-		
-		RET
-	;}
-	ENDP TEXT_NEWLINE
+TEXT_PRINT_NUM:
+    push bp
+    mov bp, sp
 
-	PROC TEXT_PRINT_MSG
-	;{
-		;PARAMS {
-			MsgOff EQU [BP + 4]
-		;}
-		
-		;PUSH {
-			PUSH BP
-			MOV BP, SP
-			
-			PUSH AX
-			PUSH DX
-		;}
-		
-		;PRINT {
-			MOV DX, MsgOff
-			MOV AH, 9
-			INT 21H
-		;}
-		
-		;POP {
-			POP DX
-			POP AX
-			
-			POP BP
-		;}
-		
-		RET 2
-	;}
-	ENDP TEXT_PRINT_MSG
+    sub sp, 2
+    mov word [bp - 2], 0 
 
-	PROC TEXT_SET_CURPOS
-	;Input: CUR_COL, CUR_ROW
-	;Output: Sets cursor position to the ROW & COL
-	
-	;{
-	
-		;PARAMS {
-			CUR_COL EQU [BP + 6]
-			CUR_ROW EQU [BP + 4]
-		;}
-		
-		;BASEPOINTER {
-			PUSH BP
-			MOV  BP, SP
-		;}
-		
-		;PUSH {
-			PUSH AX
-			PUSH BX
-			PUSH DX
-		;}
-		
-		;INT 10, AH = 2 {
-		;	SET CURSOR POSITION
-		;	BL = PAGE NUMBER (0)
-		;	DL = COL (X)
-		;	DH = ROW (Y)
-		;}
-		
-		;USE PARAMS & CALL INTERUPT {
-			MOV AH, 2
-			MOV BX, CUR_ROW
-			MOV DX, CUR_COL
-			MOV DH, BL
-			INT 10H
-		;}
-		
-		;POP {
-			POP DX
-			POP BX
-			POP AX
-			
-			POP BP
-		;}
-		
-		RET 4
-	;}
-	ENDP TEXT_SET_CURPOS
+    pusha
 
-	PROC TEXT_MODE
-	;{	
-		PUSH AX
-		MOV  AX, 3
-		INT  10h
-		POP  AX
-		RET
-	;}
-	ENDP TEXT_MODE
+    mov bx, printNumArr
+    mov cx, 16
+    mov ax, [bp + 4] 
+    mov [bp - 2], bx
+    add bx, 3
 
-	PROC TEXT_PRINTDEC
-	;{
-		;Input: Decimal array offset (array you want to print)
-		;PRINTS A DECIMAL NUMBER.
-		
-		;START PROC {
-			PUSH BP
-			MOV  BP, SP
-			
-			PUSH AX
-			PUSH BX
-			PUSH SI
-			PUSH DI
-			
-			ARR_OFF EQU [BP + 4]
-		;}
-		
-		;CODE {
-			MOV SI, ARR_OFF
-			MOV DI, OFFSET PRINT_DEC; print_dec db 0,0,0,0,0,'$'
-			XOR BX, BX
-			
-			@@COPY_ARR: ;{
-				MOV AL, [SI + BX]
-				MOV [DI + BX], AL
-				
-				INC BX
-				CMP BX, 5
-				JNZ @@COPY_ARR
-			;}
-			
-			XOR BX, BX
-			
-			@@TO_ASCII: ;{
-				ADD [BYTE PTR DI + BX], '0'
-				INC BX
-				CMP BX, 5
-				JNZ @@TO_ASCII
-			;}
-			
-			XOR BX, BX
-			
-			@@CHECK_ZERO: ;{
-				CMP [BYTE PTR DI + BX], '0'
-				JNZ @@PRINT_NUM
-				MOV [BYTE PTR DI + BX], ' '
-				
-				INC BX
-				CMP BX, 4
-				JNZ @@CHECK_ZERO
-			;}
-			
-			
-			@@PRINT_NUM: ;{
-				PUSH DI
-				CALL TEXT_PRINT_MSG
-			;}
-			
-		;}
-		
-		@@END_PROC: ;{
-			POP DI
-			POP SI
-			POP BX
-			POP AX
-			
-			POP BP
-			RET 2
-		;}
-	;}
-	ENDP TEXT_PRINTDEC
+breakNum:
+    xor dx, dx
+    div cx
+    mov [bx], dl
+    dec bx
+    cmp bx, [bp - 2]
+    jge breakNum
 
-	PROC TEXT_COLORSTR
-	;{
-		;PRINTS A STRING WITH COLOR.
-		;INPUT: COLOR, STRING OFFSET.
-		
-		;START PROC {
-			PUSH BP
-			MOV  BP, SP
-			
-			SUB  SP, 2
-			CURSOR_Y EQU [BP - 2]
-			
-			PUSH AX
-			PUSH BX
-			PUSH CX
-			PUSH DX
-			PUSH SI
-			
-			TXT_COLOR 	EQU [BP + 6]
-			ARR_OFF 	EQU [BP + 4]
-			
-		;}
-		
-		;CODE {
-			
-			;GET CURSOR POS {
-				MOV  AH, 3
-				XOR  BX, BX
-				INT  10H
-				XCHG DH, BL
-				MOV  CURSOR_Y, BX
-			;}
-			
-			;SETUP FOR INTERRUPT {
-				MOV SI, ARR_OFF
-				MOV BL, TXT_COLOR
-				MOV BH, 0
-				MOV AH, 9
-				MOV CX, 1
-			;}
-			
-			@@TXT_LOOP: ;{
-				MOV AL, [SI]
-				CMP AL, '$'
-				JZ  @@END_PROC
-				
-				PUSH DX
-				PUSH CURSOR_Y
-				CALL TEXT_SET_CURPOS
-				
-				INT 10H
-				INC SI
-				INC DX
-				JMP @@TXT_LOOP
-			;}
-			
-		;}
-		
-		@@END_PROC: ;{
-			POP SI
-			POP DX
-			POP CX
-			POP BX
-			POP AX
-			
-			ADD SP, 2
-			POP BP
-			RET 4
-		;}
-	;}
-	ENDP TEXT_COLORSTR
+    mov bx, printNumArr
+    add bx, 3
+
+ToAscii:
+    cmp byte [bx], 9
+    ja toLetter
+    add byte [bx], '0'
+    jmp exitToAscii
+
+toLetter:
+    add byte [bx], 37h 
+
+exitToAscii:
+    dec bx
+    cmp bx, [bp - 2]
+    jge ToAscii
+
+    push printNumArr
+    call TEXT_PRINT_MSG
+
+    popa
+
+    add sp, 2
+    pop bp
+    ret 2
+
+TEXT_NEWLINE:
+    push ax
+    push dx
+
+    mov dl, 0Ah
+    mov ah, 2
+    int 21h
+    mov dl, 0Dh
+    int 21h
+
+    pop dx
+    pop ax
+    ret
+
+TEXT_PRINT_MSG:
+    push bp
+    mov bp, sp
+
+    push ax
+    push dx
+
+    mov dx, [bp + 4]
+    mov ah, 9
+    int 21h
+
+    pop dx
+    pop ax
+    pop bp
+    ret 2
+
+TEXT_SET_CURPOS:
+    push bp
+    mov bp, sp
+
+    push ax
+    push bx
+    push dx
+
+    mov ah, 2
+    mov dl, [bp + 6] 
+    mov dh, [bp + 4] 
+    xor bh, bh     
+    int 10h
+
+    pop dx
+    pop bx
+    pop ax
+    pop bp
+    ret 4
+
+TEXT_MODE:
+    push ax
+    mov ax, 3
+    int 10h
+    pop ax
+    ret
+
+TEXT_PRINTDEC:
+    push bp
+    mov bp, sp
+
+    push ax
+    push bx
+    push si
+    push di
+
+    mov si, [bp + 4]
+    mov di, print_dec
+    xor bx, bx
+
+CopyArr:
+    mov al, [si + bx]
+    mov [di + bx], al
+    inc bx
+    cmp bx, 5
+    jne CopyArr
+
+    xor bx, bx
+
+ToAscii:
+    add byte [di + bx], '0'
+    inc bx
+    cmp bx, 5
+    jne ToAscii
+
+    xor bx, bx
+
+CheckZero:
+    cmp byte [di + bx], '0'
+    jne PrintNum
+    mov byte [di + bx], ' '
+    inc bx
+    cmp bx, 4
+    jne CheckZero
+
+PrintNum:
+    push di
+    call TEXT_PRINT_MSG
+
+EndProc:
+    pop di
+    pop si
+    pop bx
+    pop ax
+    pop bp
+    ret 2
+
+TEXT_COLORSTR:
+    push bp
+    mov bp, sp
+
+    sub sp, 2
+    mov word [bp - 2], 0 
+
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+
+    mov si, [bp + 4]
+    mov bl, [bp + 6]
+    xor bh, bh
+
+TxtLoop:
+    mov al, [si]
+    cmp al, '$'
+    jz EndProc
+    mov ah, 9
+    mov cx, 1
+    int 10h
+    inc si
+    inc dx
+    jmp TxtLoop
+
+EndProc:
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    add sp, 2
+    pop bp
+    ret 4
